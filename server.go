@@ -2,6 +2,7 @@ package serkis
 
 import (
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -19,7 +20,15 @@ type Server struct {
 func (s Server) Router() http.Handler {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/edit/{rest:.*}", s.handleEdit).Methods("GET", "PUT")
+	r.HandleFunc(
+		"/edit/{rest:.*}",
+		s.middlewareGetFile(s.handleShowEdit),
+	).Methods("GET")
+
+	r.HandleFunc(
+		"/edit/{rest:.*}",
+		s.handleEdit,
+	).Methods("POST")
 
 	r.HandleFunc(
 		"/{rest:.*}",
@@ -44,8 +53,44 @@ func (s Server) middlewareGetFile(f HandlerWithFile) http.HandlerFunc {
 	}
 }
 
+func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, raw []byte) {
+	fpath := mux.Vars(req)["rest"]
+
+	t, err := template.New("edit").Parse(editTemplate)
+	if err != nil {
+		fmt.Fprintln(w, "Could not parse template")
+		return
+	}
+
+	data := struct {
+		Fpath     string
+		Fcontents string
+	}{
+		Fpath:     fpath,
+		Fcontents: string(raw),
+	}
+
+	err = t.Execute(w, data)
+
+	if err != nil {
+		fmt.Fprintln(w, "Failed to render template: ", err)
+		return
+	}
+}
+
 func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintln(w, "Editing: "+mux.Vars(req)["rest"])
+	rawfpath := mux.Vars(req)["rest"]
+	fpath := s.path(rawfpath)
+
+	contents := req.FormValue("contents")
+
+	err := ioutil.WriteFile(fpath, []byte(contents), 0644)
+	if err != nil {
+		fmt.Fprintln(w, "Failed to render template: ", err)
+		return
+	}
+
+	http.Redirect(w, req, "/"+rawfpath, 301)
 }
 
 func (s Server) handleShow(w http.ResponseWriter, req *http.Request, raw []byte) {
@@ -55,7 +100,9 @@ func (s Server) handleShow(w http.ResponseWriter, req *http.Request, raw []byte)
 }
 
 func (s Server) file(fpath string) ([]byte, error) {
-	p := path.Join(s.Public, path.Clean(fpath))
+	return ioutil.ReadFile(s.path(fpath))
+}
 
-	return ioutil.ReadFile(p)
+func (s Server) path(fpath string) string {
+	return path.Join(s.Public, path.Clean(fpath))
 }
