@@ -22,6 +22,8 @@ type Server struct {
 	HTTPRealm    string
 
 	Git *Git
+
+	GitHubWebhookSecret string
 }
 
 func (s Server) Init() error {
@@ -71,7 +73,12 @@ func (s Server) Router() http.Handler {
 		s.middlewareGetFile(s.handleShow),
 	).Methods("GET")
 
-	return s.middlewareBasicAuth(r)
+	router := mux.NewRouter()
+
+	router.Handle("/", s.middlewareBasicAuth(r))
+	router.HandleFunc("/gh_webhook", s.handleWebhook)
+
+	return router
 }
 
 func (s Server) middlewareBasicAuth(f http.Handler) http.HandlerFunc {
@@ -193,12 +200,40 @@ func (s Server) handleShow(w http.ResponseWriter, req *http.Request, raw []byte)
 	}
 }
 
+func (s Server) handleWebhook(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-type", "application/json")
+
+	wv := WebhookValidator{
+		Secret:    s.GitHubWebhookSecret,
+		Signature: req.Header.Get("x-hub-signature"),
+		Body:      req.Body,
+	}
+
+	ok, err := wv.Valid()
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "Invalid webhook: ", err)
+		return
+	}
+
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "Incorrect secret")
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "{}")
+
+	go s.Git.PullRemoteChanges(s.Public)
+}
+
 func (s Server) file(fpath string) ([]byte, error) {
 	return ioutil.ReadFile(s.path(fpath))
 }
 
 func (s Server) path(fpath string) string {
-	// We calls like `/` and `/streams` to resolve to `/README.md` and `/streams/README.md` respectively.
+	// We want calls like `/` and `/streams` to resolve to `/README.md` and `/streams/README.md` respectively.
 	if path.Ext(fpath) != ".md" {
 		fpath = path.Join("README.md")
 	}

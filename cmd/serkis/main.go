@@ -22,6 +22,8 @@ var (
 	gitPassword    = conf.String("git-password", "", "Password for git account")
 	gitAuthorName  = conf.String("git-author-name", "", "Name for git account")
 	gitAuthorEmail = conf.String("git-author-email", "", "Email for git account")
+
+	githubWebhookSecret = conf.String("github-webhook-secret", "", "Secret for GitHub Webhook")
 )
 
 func init() {
@@ -49,6 +51,8 @@ func main() {
 			AuthorName:  *gitAuthorName,
 			AuthorEmail: *gitAuthorEmail,
 		},
+
+		GitHubWebhookSecret: *githubWebhookSecret,
 	}
 
 	s.Init()

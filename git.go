@@ -35,6 +35,32 @@ func (g *Git) PushNewChanges(root, fpath string) {
 	}
 }
 
+func (g *Git) PullRemoteChanges(root string) {
+	err := g.Cmd(root, "stash")
+	if err != nil {
+		fmt.Println("FAILED. Could not stash changes:", err)
+		return
+	}
+
+	err = g.Cmd(root, "pull", "--rebase")
+	if err != nil {
+		fmt.Println("FAILED. Could not rebase pull changes:", err)
+		return
+	}
+
+	err = g.Cmd(root, "push")
+	if err != nil {
+		fmt.Println("FAILED. Could not push changes:", err)
+		return
+	}
+
+	err = g.Cmd(root, "stash", "apply", "--index")
+	if err != nil {
+		fmt.Println("FAILED. Could not apply stashed changes:", err)
+		return
+	}
+}
+
 func (g *Git) Clone(root string) error {
 	gURL, err := url.Parse(g.URL)
 	if err != nil {
