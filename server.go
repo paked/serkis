@@ -20,6 +20,16 @@ func (s Server) Router() http.Handler {
 	r := mux.NewRouter()
 
 	r.HandleFunc(
+		"/new",
+		s.handleShowNew,
+	).Methods("GET")
+
+	r.HandleFunc(
+		"/new",
+		s.handleNew,
+	).Methods("POST")
+
+	r.HandleFunc(
 		"/edit/{rest:.*}",
 		s.middlewareGetFile(s.handleShowEdit),
 	).Methods("GET")
@@ -66,6 +76,29 @@ func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, raw []b
 		fmt.Fprintln(w, "Failed to render template: ", err)
 		return
 	}
+}
+
+func (s Server) handleShowNew(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+
+	err := newTemplate.Execute(w, nil)
+
+	if err != nil {
+		fmt.Fprintln(w, "Failed to render template: ", err)
+		return
+	}
+}
+
+func (s Server) handleNew(w http.ResponseWriter, req *http.Request) {
+	fpath := req.FormValue("path")
+
+	err := ioutil.WriteFile(s.path(fpath), []byte{}, 0644)
+	if err != nil {
+		fmt.Fprintln(w, "Could not create new file:", err)
+		return
+	}
+
+	http.Redirect(w, req, path.Join("edit", fpath), 301)
 }
 
 func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {

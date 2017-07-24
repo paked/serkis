@@ -5,6 +5,7 @@ import "html/template"
 var (
 	editTemplate = genTemplate("edit", editTemplateHTML)
 	showTemplate = genTemplate("show", showTemplateHTML)
+	newTemplate  = genTemplate("new", newTemplateHTML)
 )
 
 const editTemplateHTML = `
@@ -25,10 +26,21 @@ const editTemplateHTML = `
 
 const showTemplateHTML = `
 <a href="/edit/{{ .Fpath }}">Edit this file</a>
+<a href="/new">Create a new file</a>
 
 <br>
 
 {{ .UnescapedFcontents }}
+`
+
+const newTemplateHTML = `
+<form method="POST" action="/new">
+	<input name="path" type="text"/>
+
+	<br>
+
+	<input type="submit" value="Go!" />
+</form>
 `
 
 type TemplateContents struct {
