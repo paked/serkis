@@ -104,5 +104,10 @@ func (s Server) file(fpath string) ([]byte, error) {
 }
 
 func (s Server) path(fpath string) string {
+	// We calls like `/` and `/streams` to resolve to `/README.md` and `/streams/README.md` respectively.
+	if path.Ext(fpath) != ".md" {
+		fpath = path.Join("README.md")
+	}
+
 	return path.Join(s.Public, path.Clean(fpath))
 }
