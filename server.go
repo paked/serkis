@@ -12,7 +12,7 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-type HandlerWithFile func(http.ResponseWriter, *http.Request, []byte)
+type HandlerWithFile func(http.ResponseWriter, *http.Request, fileInfo)
 
 type Server struct {
 	Public string
@@ -121,16 +121,17 @@ func (s Server) middlewareGetFile(f HandlerWithFile) http.HandlerFunc {
 			return
 		}
 
-		f(w, req, raw)
+		f(w, req, fileInfo{
+			Fpath:     fpath,
+			Fcontents: string(raw),
+		})
 	}
 }
 
-func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, raw []byte) {
-	fpath := mux.Vars(req)["rest"]
-
+func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, fi fileInfo) {
 	data := TemplateContents{
-		Fpath:     fpath,
-		Fcontents: string(raw),
+		Fpath:     fi.Fpath,
+		Fcontents: fi.Fcontents,
 	}
 
 	err := editTemplate.Execute(w, data)
@@ -180,12 +181,11 @@ func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, "/"+fpath, 301)
 }
 
-func (s Server) handleShow(w http.ResponseWriter, req *http.Request, raw []byte) {
-	md := blackfriday.MarkdownCommon(raw)
-	fpath := mux.Vars(req)["rest"]
+func (s Server) handleShow(w http.ResponseWriter, req *http.Request, fi fileInfo) {
+	md := blackfriday.MarkdownCommon([]byte(fi.Fcontents))
 
 	data := TemplateContents{
-		Fpath:     fpath,
+		Fpath:     fi.Fpath,
 		Fcontents: string(md),
 	}
 
@@ -230,10 +230,10 @@ func (s Server) file(fpath string) ([]byte, error) {
 }
 
 func (s Server) path(fpath string) string {
-	// We want calls like `/` and `/streams` to resolve to `/README.md` and `/streams/README.md` respectively.
-	if path.Ext(fpath) != ".md" {
-		fpath = path.Join("README.md")
-	}
-
 	return path.Join(s.Public, path.Clean(fpath))
+}
+
+type fileInfo struct {
+	Fpath     string
+	Fcontents string
 }
