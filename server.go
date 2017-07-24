@@ -20,6 +20,27 @@ type Server struct {
 	HTTPUsername string
 	HTTPPassword string
 	HTTPRealm    string
+
+	Git *Git
+}
+
+func (s Server) Init() error {
+	err := s.Git.Clone(s.Public)
+	if err != nil {
+		return err
+	}
+
+	err = s.Git.Config(s.Public, "user.name", s.Git.AuthorName)
+	if err != nil {
+		return err
+	}
+
+	err = s.Git.Config(s.Public, "user.email", s.Git.AuthorEmail)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s Server) Router() http.Handler {
@@ -140,18 +161,19 @@ func (s Server) handleNew(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
-	rawfpath := mux.Vars(req)["rest"]
-	fpath := s.path(rawfpath)
+	fpath := mux.Vars(req)["rest"]
 
 	contents := req.FormValue("contents")
 
-	err := ioutil.WriteFile(fpath, []byte(contents), 0644)
+	err := ioutil.WriteFile(s.path(fpath), []byte(contents), 0644)
 	if err != nil {
 		fmt.Fprintln(w, "Failed to render template: ", err)
 		return
 	}
 
-	http.Redirect(w, req, "/"+rawfpath, 301)
+	go s.Git.PushNewChanges(s.Public, fpath)
+
+	http.Redirect(w, req, "/"+fpath, 301)
 }
 
 func (s Server) handleShow(w http.ResponseWriter, req *http.Request, raw []byte) {
