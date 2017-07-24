@@ -11,6 +11,11 @@ var (
 	conf = configure.New()
 
 	public = conf.String("public", "public", "The files to serve")
+	port   = conf.String("port", "8765", "The port to serve from")
+
+	httpUsername = conf.String("http-username", "admin", "Username for HTTP authentication")
+	httpPassword = conf.String("http-password", "admin", "Password for HTTP basic authentication")
+	httpRealm    = conf.String("http-realm", "serkis", "Realm for HTTP basic authentication")
 )
 
 func init() {
@@ -25,7 +30,11 @@ func main() {
 
 	s := serkis.Server{
 		Public: *public,
+
+		HTTPUsername: *httpUsername,
+		HTTPPassword: *httpPassword,
+		HTTPRealm:    *httpRealm,
 	}
 
-	http.ListenAndServe("0.0.0.0:8765", s.Router())
+	http.ListenAndServe("0.0.0.0:"+*port, s.Router())
 }

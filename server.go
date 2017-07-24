@@ -1,10 +1,12 @@
 package serkis
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/russross/blackfriday"
@@ -14,6 +16,10 @@ type HandlerWithFile func(http.ResponseWriter, *http.Request, []byte)
 
 type Server struct {
 	Public string
+
+	HTTPUsername string
+	HTTPPassword string
+	HTTPRealm    string
 }
 
 func (s Server) Router() http.Handler {
@@ -44,7 +50,39 @@ func (s Server) Router() http.Handler {
 		s.middlewareGetFile(s.handleShow),
 	).Methods("GET")
 
-	return r
+	return s.middlewareBasicAuth(r)
+}
+
+func (s Server) middlewareBasicAuth(f http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		auth := strings.SplitN(req.Header.Get("Authorization"), " ", 2)
+
+		if len(auth) != 2 || auth[0] != "Basic" {
+			w.Header().Set("WWW-Authenticate", fmt.Sprintf("Basic realm=\"%s\"", s.HTTPRealm))
+
+			http.Error(w, "Could not authorize user", http.StatusUnauthorized)
+			return
+		}
+
+		payload, err := base64.StdEncoding.DecodeString(auth[1])
+		if err != nil {
+			fmt.Fprintln(w, "Could not parse auth header:", err)
+			return
+		}
+
+		pair := strings.SplitN(string(payload), ":", 2)
+
+		if len(pair) != 2 && !s.authed(pair[0], pair[1]) {
+			http.Error(w, "Could not authorize user", http.StatusUnauthorized)
+			return
+		}
+
+		f.ServeHTTP(w, req)
+	}
+}
+
+func (s Server) authed(username, password string) bool {
+	return username == s.HTTPUsername && password == s.HTTPPassword
 }
 
 func (s Server) middlewareGetFile(f HandlerWithFile) http.HandlerFunc {
