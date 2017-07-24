@@ -2,7 +2,6 @@ package serkis
 
 import (
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -56,21 +55,12 @@ func (s Server) middlewareGetFile(f HandlerWithFile) http.HandlerFunc {
 func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, raw []byte) {
 	fpath := mux.Vars(req)["rest"]
 
-	t, err := template.New("edit").Parse(editTemplate)
-	if err != nil {
-		fmt.Fprintln(w, "Could not parse template")
-		return
-	}
-
-	data := struct {
-		Fpath     string
-		Fcontents string
-	}{
+	data := TemplateContents{
 		Fpath:     fpath,
 		Fcontents: string(raw),
 	}
 
-	err = t.Execute(w, data)
+	err := editTemplate.Execute(w, data)
 
 	if err != nil {
 		fmt.Fprintln(w, "Failed to render template: ", err)
@@ -95,8 +85,19 @@ func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
 
 func (s Server) handleShow(w http.ResponseWriter, req *http.Request, raw []byte) {
 	md := blackfriday.MarkdownCommon(raw)
+	fpath := mux.Vars(req)["rest"]
 
-	fmt.Fprintf(w, "%s", md)
+	data := TemplateContents{
+		Fpath:     fpath,
+		Fcontents: string(md),
+	}
+
+	err := showTemplate.Execute(w, data)
+
+	if err != nil {
+		fmt.Fprintln(w, "Failed to render template: ", err)
+		return
+	}
 }
 
 func (s Server) file(fpath string) ([]byte, error) {
