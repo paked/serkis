@@ -48,40 +48,37 @@ func (s Server) Init() error {
 func (s Server) Router() http.Handler {
 	r := mux.NewRouter()
 
+	r.HandleFunc("/gh_webhook", s.handleWebhook)
+
 	r.HandleFunc(
 		"/new",
-		s.handleShowNew,
+		s.middlewareBasicAuth(s.handleShowNew),
 	).Methods("GET")
 
 	r.HandleFunc(
 		"/new",
-		s.handleNew,
+		s.middlewareBasicAuth(s.handleNew),
 	).Methods("POST")
 
 	r.HandleFunc(
 		"/edit/{rest:.*}",
-		s.middlewareGetFile(s.handleShowEdit),
+		s.middlewareBasicAuth(s.middlewareGetFile(s.handleShowEdit)),
 	).Methods("GET")
 
 	r.HandleFunc(
 		"/edit/{rest:.*}",
-		s.handleEdit,
+		s.middlewareBasicAuth(s.handleEdit),
 	).Methods("POST")
 
 	r.HandleFunc(
 		"/{rest:.*}",
-		s.middlewareGetFile(s.handleShow),
+		s.middlewareBasicAuth(s.middlewareGetFile(s.handleShow)),
 	).Methods("GET")
 
-	router := mux.NewRouter()
-
-	router.Handle("/", s.middlewareBasicAuth(r))
-	router.HandleFunc("/gh_webhook", s.handleWebhook)
-
-	return router
+	return r
 }
 
-func (s Server) middlewareBasicAuth(f http.Handler) http.HandlerFunc {
+func (s Server) middlewareBasicAuth(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		auth := strings.SplitN(req.Header.Get("Authorization"), " ", 2)
 
@@ -105,7 +102,7 @@ func (s Server) middlewareBasicAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		f.ServeHTTP(w, req)
+		f(w, req)
 	}
 }
 
