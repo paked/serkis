@@ -6,3 +6,8 @@ services:
       - "8765:8765"
     volumes:
       - .:/go/src/github.com/paked/serkis
+  run:
+    build: .
+    ports:
+      - "8765:8765"
+    command: go run cmd/serkis/main.go
