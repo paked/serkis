@@ -175,6 +175,7 @@ func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
 	}
 
 	contents := req.FormValue("contents")
+	message := req.FormValue("message")
 
 	err := ioutil.WriteFile(fi.LocalPath(), []byte(contents), 0644)
 	if err != nil {
@@ -182,7 +183,7 @@ func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	go s.Git.PushNewChanges(s.Public, fi.VPath())
+	go s.Git.PushNewChanges(s.Public, fi.VPath(), message)
 
 	http.Redirect(w, req, path.Join("/", fi.VPath()), 301)
 }

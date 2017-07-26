@@ -20,7 +20,7 @@ const editTemplateHTML = `
 	<br>
 	<br>
 
-	<input type="submit" value="Go!" />
+	<input type="submit" value="Commit" />
 </form>
 `
 
@@ -39,7 +39,7 @@ const newTemplateHTML = `
 
 	<br>
 
-	<input type="submit" value="Go!" />
+	<input type="submit" value="Create file" />
 </form>
 `
 

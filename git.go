@@ -15,14 +15,14 @@ type Git struct {
 	AuthorEmail string
 }
 
-func (g *Git) PushNewChanges(root, fpath string) {
+func (g *Git) PushNewChanges(root, fpath, message string) {
 	err := g.Add(root, fpath)
 	if err != nil {
 		fmt.Println("FAILED. Could not add changes:", err)
 		return
 	}
 
-	err = g.Commit(root, "Updated")
+	err = g.Commit(root, message)
 	if err != nil {
 		fmt.Println("FAILED. Could not commit changes:", err)
 		return
@@ -56,7 +56,7 @@ func (g *Git) PullRemoteChanges(root string) {
 
 	err = g.Cmd(root, "git", "stash", "apply", "--index")
 	if err != nil {
-		fmt.Println("FAILED. Could not apply stashed changes:", err)
+		fmt.Println("WARNING. Could not apply stashed changes:", err)
 		return
 	}
 }
