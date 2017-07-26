@@ -12,7 +12,7 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-type HandlerWithFile func(http.ResponseWriter, *http.Request, fileInfo)
+type HandlerWithFile func(http.ResponseWriter, *http.Request, File)
 
 type Server struct {
 	Public string
@@ -112,30 +112,31 @@ func (s Server) authed(username, password string) bool {
 
 func (s Server) middlewareGetFile(f HandlerWithFile) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		fpath := mux.Vars(req)["rest"]
 		w.Header().Set("Content-Type", "text/html")
 
-		raw, err := s.file(fpath)
+		fi := File{
+			Path:   mux.Vars(req)["rest"],
+			Public: s.Public,
+		}
+
+		n, should, err := fi.RedirectTo()
 		if err != nil {
-			fmt.Fprintln(w, "Could not find file")
+			fmt.Fprintln(w, "Error getting file:", err)
 			return
 		}
 
-		f(w, req, fileInfo{
-			Fpath:     fpath,
-			Fcontents: string(raw),
-		})
+		if should {
+			// This redirect will not properly handle redirects to the edit page.
+			http.Redirect(w, req, n, 301)
+			return
+		}
+
+		f(w, req, fi)
 	}
 }
 
-func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, fi fileInfo) {
-	data := TemplateContents{
-		Fpath:     fi.Fpath,
-		Fcontents: fi.Fcontents,
-	}
-
-	err := editTemplate.Execute(w, data)
-
+func (s Server) handleShowEdit(w http.ResponseWriter, req *http.Request, fi File) {
+	err := editTemplate.Execute(w, fi.TemplateData())
 	if err != nil {
 		fmt.Fprintln(w, "Failed to render template: ", err)
 		return
@@ -146,7 +147,6 @@ func (s Server) handleShowNew(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 
 	err := newTemplate.Execute(w, nil)
-
 	if err != nil {
 		fmt.Fprintln(w, "Failed to render template: ", err)
 		return
@@ -154,43 +154,45 @@ func (s Server) handleShowNew(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s Server) handleNew(w http.ResponseWriter, req *http.Request) {
-	fpath := req.FormValue("path")
+	fi := File{
+		Path:   req.FormValue("path"),
+		Public: s.Public,
+	}
 
-	err := ioutil.WriteFile(s.path(fpath), []byte{}, 0644)
+	err := ioutil.WriteFile(fi.LocalPath(), []byte{}, 0644)
 	if err != nil {
 		fmt.Fprintln(w, "Could not create new file:", err)
 		return
 	}
 
-	http.Redirect(w, req, path.Join("edit", fpath), 301)
+	http.Redirect(w, req, path.Join("edit", fi.VPath()), 301)
 }
 
 func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
-	fpath := mux.Vars(req)["rest"]
+	fi := File{
+		Path:   mux.Vars(req)["rest"],
+		Public: s.Public,
+	}
 
 	contents := req.FormValue("contents")
 
-	err := ioutil.WriteFile(s.path(fpath), []byte(contents), 0644)
+	err := ioutil.WriteFile(fi.LocalPath(), []byte(contents), 0644)
 	if err != nil {
 		fmt.Fprintln(w, "Failed to render template: ", err)
 		return
 	}
 
-	go s.Git.PushNewChanges(s.Public, fpath)
+	go s.Git.PushNewChanges(s.Public, fi.VPath())
 
-	http.Redirect(w, req, "/"+fpath, 301)
+	http.Redirect(w, req, path.Join("/", fi.VPath()), 301)
 }
 
-func (s Server) handleShow(w http.ResponseWriter, req *http.Request, fi fileInfo) {
-	md := blackfriday.MarkdownCommon([]byte(fi.Fcontents))
+func (s Server) handleShow(w http.ResponseWriter, req *http.Request, fi File) {
+	data := fi.TemplateData()
 
-	data := TemplateContents{
-		Fpath:     fi.Fpath,
-		Fcontents: string(md),
-	}
+	data.Fcontents = string(blackfriday.MarkdownCommon([]byte(data.Fcontents)))
 
 	err := showTemplate.Execute(w, data)
-
 	if err != nil {
 		fmt.Fprintln(w, "Failed to render template: ", err)
 		return
@@ -217,23 +219,11 @@ func (s Server) handleWebhook(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(w, "Incorrect secret")
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "{}")
 
 	go s.Git.PullRemoteChanges(s.Public)
-}
-
-func (s Server) file(fpath string) ([]byte, error) {
-	return ioutil.ReadFile(s.path(fpath))
-}
-
-func (s Server) path(fpath string) string {
-	return path.Join(s.Public, path.Clean(fpath))
-}
-
-type fileInfo struct {
-	Fpath     string
-	Fcontents string
 }
