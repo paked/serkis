@@ -1,6 +1,9 @@
 package serkis
 
-import "html/template"
+import (
+	"html/template"
+	"path"
+)
 
 var (
 	editTemplate = genTemplate("edit", editTemplateHTML)
@@ -9,6 +12,8 @@ var (
 )
 
 const editTemplateHTML = `
+<a href="/{{ .Fpath }}">View this file</a>
+
 <form method="POST" action="/edit/{{ .Fpath }}">
 	<textarea cols="80" rows="30" name="contents">{{ .Fcontents }}</textarea>
 
@@ -27,6 +32,7 @@ const editTemplateHTML = `
 const showTemplateHTML = `
 <a href="/edit/{{ .Fpath }}">Edit this file</a>
 <a href="/new">Create a new file</a>
+<a href="/{{ .BackURL }}">Back</a>
 
 <br>
 
@@ -50,6 +56,16 @@ type TemplateContents struct {
 
 func (tc TemplateContents) UnescapedFcontents() template.HTML {
 	return template.HTML(tc.Fcontents)
+}
+
+func (tc TemplateContents) BackURL() string {
+	url := path.Dir(tc.Fpath)
+
+	if path.Base(tc.Fpath) == "README.md" {
+		url = path.Dir(url)
+	}
+
+	return url
 }
 
 func genTemplate(name, html string) *template.Template {
