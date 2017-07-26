@@ -1,9 +1,15 @@
 package serkis
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
+)
+
+var (
+	ErrNotAMarkdownFile = errors.New("Requested file is not a markdown file")
 )
 
 type File struct {
@@ -20,6 +26,8 @@ func (f File) RedirectTo() (string, bool, error) {
 		return "", false, err
 	case fi.IsDir():
 		return path.Join(f.VPath(), "README.md"), true, nil
+	case !strings.HasSuffix(f.VPath(), ".md"):
+		return "", false, ErrNotAMarkdownFile
 	default:
 		return "", false, nil
 	}
