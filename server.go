@@ -97,7 +97,7 @@ func (s Server) middlewareBasicAuth(f http.HandlerFunc) http.HandlerFunc {
 
 		pair := strings.SplitN(string(payload), ":", 2)
 
-		if len(pair) != 2 && !s.authed(pair[0], pair[1]) {
+		if len(pair) != 2 || !s.authed(pair[0], pair[1]) {
 			http.Error(w, "Could not authorize user", http.StatusUnauthorized)
 			return
 		}
