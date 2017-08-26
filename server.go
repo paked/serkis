@@ -174,7 +174,9 @@ func (s Server) handleEdit(w http.ResponseWriter, req *http.Request) {
 		Public: s.Public,
 	}
 
-	contents := req.FormValue("contents")
+	r := strings.NewReplacer("\r\n", "\n")
+
+	contents := r.Replace(req.FormValue("contents"))
 	message := req.FormValue("message")
 
 	err := ioutil.WriteFile(fi.LocalPath(), []byte(contents), 0644)
