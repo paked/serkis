@@ -15,7 +15,7 @@ const editTemplateHTML = `
 <a href="/{{ .Fpath }}">View this file</a>
 
 <form method="POST" action="/edit/{{ .Fpath }}">
-	<textarea cols="80" rows="30" name="contents">{{ .Fcontents }}</textarea>
+	<textarea cols="80" rows="30" name="contents" accept-charset="UTF-8">{{ .Fcontents }}</textarea>
 
 	<br>
 	<br>
