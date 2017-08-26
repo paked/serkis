@@ -49,6 +49,10 @@ func (s Server) Router() http.Handler {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/gh_webhook", s.handleWebhook)
+	r.HandleFunc(
+		"/share/{secret:.*}",
+		s.handleSecret,
+	).Methods("GET")
 
 	r.HandleFunc(
 		"/new",
@@ -132,6 +136,39 @@ func (s Server) middlewareGetFile(f HandlerWithFile) http.HandlerFunc {
 		}
 
 		f(w, req, fi)
+	}
+}
+
+func (s Server) handleSecret(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+
+	secret := mux.Vars(req)["secret"]
+
+	sh, err := NewShareFromSecret(secret, cryptoKey)
+	if err != nil {
+		fmt.Fprintln(w, "Failed to decrypt secret:", err)
+		return
+	}
+
+	fi := File{
+		Path:   sh.Fpath,
+		Public: s.Public,
+	}
+
+	_, _, err = fi.RedirectTo()
+	if err != nil {
+		fmt.Fprintln(w, "Error getting file:", err)
+		return
+	}
+
+	data := fi.TemplateData()
+
+	data.Fcontents = string(blackfriday.MarkdownCommon([]byte(data.Fcontents)))
+
+	err = rawShowTemplate.Execute(w, data)
+	if err != nil {
+		fmt.Fprintln(w, "Failed to render template: ", err)
+		return
 	}
 }
 

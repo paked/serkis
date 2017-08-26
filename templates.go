@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	editTemplate = genTemplate("edit", editTemplateHTML)
-	showTemplate = genTemplate("show", showTemplateHTML)
-	newTemplate  = genTemplate("new", newTemplateHTML)
+	editTemplate    = genTemplate("edit", editTemplateHTML)
+	showTemplate    = genTemplate("show", showTemplateHTML)
+	rawShowTemplate = genTemplate("rawShow", rawShowTemplateHTML)
+	newTemplate     = genTemplate("new", newTemplateHTML)
 )
 
 const editTemplateHTML = `
@@ -33,9 +34,14 @@ const showTemplateHTML = `
 <a href="/edit/{{ .Fpath }}">Edit this file</a>
 <a href="/new">Create a new file</a>
 <a href="/{{ .BackURL }}">Back</a>
+<a href="/{{ .ShareURL }}">Share</a>
 
 <br>
 
+{{ .UnescapedFcontents }}
+`
+
+const rawShowTemplateHTML = `
 {{ .UnescapedFcontents }}
 `
 
@@ -52,6 +58,14 @@ const newTemplateHTML = `
 type TemplateContents struct {
 	Fpath     string
 	Fcontents string
+}
+
+func (tc TemplateContents) ShareURL() template.HTML {
+	s := Share{Fpath: tc.Fpath}
+
+	secret, _ := s.Secret(cryptoKey)
+
+	return template.HTML("share/" + secret)
 }
 
 func (tc TemplateContents) UnescapedFcontents() template.HTML {
