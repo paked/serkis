@@ -12,8 +12,37 @@ var (
 	newTemplate     = genTemplate("new", newTemplateHTML)
 )
 
-const editTemplateHTML = `
-<a href="/{{ .Fpath }}">View this file</a>
+const style = `
+<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,600,600italic,300,300italic,400italic,700,700italic,800,800italic' rel='stylesheet' type='text/css'>
+
+<style>
+body {
+	font-family: 'Open Sans', sans-serif;
+	font-weight: 400;
+	font-size: 14px;
+
+	color: #221917;
+
+	background-color: white;
+}
+
+@media (min-width:1025px) {
+	body {
+		width: 50%;
+
+		margin-left: auto;
+		margin-right: auto;
+	}
+}
+
+.links {
+	margin-right: 20px;
+}
+</style>
+`
+
+const editTemplateHTML = style + `
+<a href="/{{ .Fpath }}" class="links">View this file</a>
 
 <form method="POST" action="/edit/{{ .Fpath }}">
 	<textarea cols="80" rows="30" name="contents" accept-charset="UTF-8">{{ .Fcontents }}</textarea>
@@ -30,22 +59,22 @@ const editTemplateHTML = `
 </form>
 `
 
-const showTemplateHTML = `
-<a href="/edit/{{ .Fpath }}">Edit this file</a>
-<a href="/new">Create a new file</a>
-<a href="/{{ .BackURL }}">Back</a>
-<a href="/{{ .ShareURL }}">Share</a>
+const showTemplateHTML = style + `
+<a href="/edit/{{ .Fpath }}" class="links">Edit this file</a>
+<a href="/new" class="links">Create a new file</a>
+<a href="/{{ .BackURL }}" class="links">Back</a>
+<a href="/{{ .ShareURL }}" class="links">Share</a>
 
 <br>
 
 {{ .UnescapedFcontents }}
 `
 
-const rawShowTemplateHTML = `
+const rawShowTemplateHTML = style + `
 {{ .UnescapedFcontents }}
 `
 
-const newTemplateHTML = `
+const newTemplateHTML = style + `
 <form method="POST" action="/new">
 	<input name="path" type="text"/>
 
